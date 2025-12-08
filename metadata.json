@@ -1,0 +1,5 @@
+{
+  "name": "Coromandel Nandesari SCADA Dashboard",
+  "description": "A high-fidelity replica of the AVEVA PI Vision dashboard for the SSP/GSSP unit, featuring real-time data simulation, industrial gauge visualizations, and tank level monitoring.",
+  "requestFramePermissions": []
+}
