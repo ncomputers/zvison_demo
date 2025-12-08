@@ -13,7 +13,7 @@ export interface MetricDefinition {
 export interface WidgetConfig {
   widget_id: string;
   title: string;
-  type: 'gauge' | 'vertical_tank' | 'bar' | 'numeric_card' | 'time_series';
+  type: 'gauge' | 'vertical_tank' | 'bar' | 'numeric_card' | 'time_series' | 'status_card' | 'donut';
   linked_metric_id: string;
   unit: string;
   display_min?: number;
