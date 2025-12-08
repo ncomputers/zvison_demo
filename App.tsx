@@ -27,10 +27,10 @@ const App: React.FC = () => {
     Object.entries(DASHBOARD_CONFIG.metrics).forEach(([key, metric]) => {
         const val = generateValue(metric.value_range.min, metric.value_range.max);
         initialData[key] = val;
-        // Seed history with 10 points
-        initialHistory[key] = Array.from({length: 10}, (_, i) => ({
+        // Seed history with 20 points
+        initialHistory[key] = Array.from({length: 20}, (_, i) => ({
             value: generateValue(metric.value_range.min, metric.value_range.max, val),
-            timestamp: now - ((10 - i) * 2000)
+            timestamp: now - ((20 - i) * 2000)
         }));
     });
     setLiveData(initialData);
@@ -99,6 +99,8 @@ const App: React.FC = () => {
           <Tank
             key={widget.widget_id}
             value={value}
+            min={min}
+            max={max}
             title={widget.title}
             unit={widget.unit}
           />
@@ -141,33 +143,60 @@ const App: React.FC = () => {
     }
   }, [liveData, history]);
 
+  // Define layout structure for a 12-column grid
+  // Use specific spans to create a dense, symmetrical dashboard
+  const getLayoutConfig = (groupId: string) => {
+    switch (groupId) {
+      // ROW 1
+      case 'stack_parameters':
+        return { span: 'col-span-12 lg:col-span-4', cols: 'grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4' }; // 4 items
+      case 'sulphuric_acid_stock_level_mt':
+        return { span: 'col-span-12 lg:col-span-4', cols: 'grid-cols-4' }; // 4 items
+      case 'plant_throughput':
+        return { span: 'col-span-12 lg:col-span-4', cols: 'grid-cols-3' }; // 3 items
+
+      // ROW 2
+      case 'inventory_parameters':
+        return { span: 'col-span-12 lg:col-span-3', cols: 'grid-cols-2' }; // 2 items
+      case 'enhancer_and_process_parameters':
+        return { span: 'col-span-12 lg:col-span-6', cols: 'grid-cols-3' }; // 5 items (wraps 3 top, 2 bottom)
+      case 'product_and_coal_furnace_temperature':
+        return { span: 'col-span-12 lg:col-span-3', cols: 'grid-cols-2' }; // 2 items
+
+      // ROW 3
+      case 'electrical_and_mech_feedbacks':
+        return { span: 'col-span-12 lg:col-span-6', cols: 'grid-cols-2 sm:grid-cols-4' }; // 4 items
+      case 'mill_pressures_and_loads':
+        return { span: 'col-span-12 lg:col-span-3', cols: 'grid-cols-1 sm:grid-cols-2' }; // 2 items
+      case 'flow_totalisers_and_manual_entries':
+        return { span: 'col-span-12 lg:col-span-3', cols: 'grid-cols-1 sm:grid-cols-3 lg:grid-cols-1' }; // 3 items stacked vertical on large screens for symmetry
+
+      default:
+        return { span: 'col-span-12', cols: 'grid-cols-4' };
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen bg-black text-white font-sans overflow-hidden">
       <Header />
       
-      <main className="flex-1 overflow-auto p-4 bg-black">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4 pb-10">
+      <main className="flex-1 overflow-y-auto overflow-x-hidden p-2 bg-[#101010]">
+        <div className="grid grid-cols-12 gap-2 pb-10 max-w-[1920px] mx-auto">
           
           {DASHBOARD_CONFIG.layout_groups.map((group) => {
-            // Determine grid span based on content size to mimic the "Masonry-ish" look of PI Vision
-            let colSpan = "col-span-1";
-            if (group.widgets.length > 4) colSpan = "col-span-1 md:col-span-2 lg:col-span-3";
-            else if (group.widgets.length > 2) colSpan = "col-span-1 md:col-span-2";
+            const layout = getLayoutConfig(group.group_id);
 
             return (
-              <div key={group.group_id} className={`bg-[#1e1e1e] border border-[#333] rounded-sm flex flex-col ${colSpan} shadow-lg shadow-black/50`}>
-                <div className="bg-[#2d2d2d] px-3 py-1.5 border-b border-[#333] flex justify-between items-center">
-                  <h3 className="text-xs font-bold text-gray-200 uppercase tracking-wide">{group.title}</h3>
-                  <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
+              <div key={group.group_id} className={`bg-[#1e1e1e] border border-[#333] rounded flex flex-col ${layout.span} shadow-lg shadow-black/40`}>
+                <div className="bg-[#2a2a2a] px-3 py-1 border-b border-[#333] flex justify-between items-center h-8 shrink-0">
+                  <h3 className="text-[11px] font-bold text-gray-300 uppercase tracking-wider">{group.title}</h3>
+                  <div className="flex items-center space-x-1">
+                     <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-[pulse_2s_ease-in-out_infinite]"></div>
+                  </div>
                 </div>
                 
-                <div className="p-2 flex-1">
-                   <div className={`grid gap-2 h-full ${
-                       group.widgets.length === 1 ? 'grid-cols-1' :
-                       group.widgets.length === 2 ? 'grid-cols-2' : 
-                       group.widgets.length === 3 ? 'grid-cols-3' : 
-                       'grid-cols-2 sm:grid-cols-4'
-                   }`}>
+                <div className="p-2 flex-1 min-h-0">
+                   <div className={`grid gap-2 h-full ${layout.cols}`}>
                       {group.widgets.map(renderWidget)}
                    </div>
                 </div>
@@ -179,9 +208,15 @@ const App: React.FC = () => {
       </main>
       
       {/* Footer / Status Bar */}
-      <footer className="bg-[#1a1a1a] border-t border-[#333] p-1 px-4 flex justify-between items-center text-[10px] text-gray-500">
-        <div>Connected to: PI-AF-SERVER-01 | Latency: 45ms</div>
-        <div>User: UNIT_HEAD_VIEW | Last Update: Live</div>
+      <footer className="bg-[#1a1a1a] border-t border-[#333] px-4 py-1 flex justify-between items-center text-[10px] text-gray-500 shrink-0 select-none">
+        <div className="flex space-x-4">
+            <span>Connected to: <span className="text-gray-400">PI-AF-SERVER-01</span></span>
+            <span>Latency: <span className="text-green-500">45ms</span></span>
+        </div>
+        <div className="flex space-x-4">
+            <span>User: <span className="text-gray-400">UNIT_HEAD_VIEW</span></span>
+            <span>Last Update: <span className="text-blue-400">Live</span></span>
+        </div>
       </footer>
     </div>
   );
