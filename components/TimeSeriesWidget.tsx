@@ -1,5 +1,6 @@
-import React from 'react';
-import { LineChart, Line, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
+import React, { useId } from 'react';
+import { AreaChart, Area, YAxis, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
+import { Maximize2 } from 'lucide-react';
 
 interface TimeSeriesWidgetProps {
   data: { value: number; timestamp: number }[];
@@ -8,62 +9,57 @@ interface TimeSeriesWidgetProps {
   unit: string;
   min: number;
   max: number;
+  onClick?: () => void;
 }
 
-const CustomTooltip = ({ active, payload, label, unit }: any) => {
-  if (active && payload && payload.length) {
-    const dataPoint = payload[0].payload;
-    const date = new Date(dataPoint.timestamp);
-    return (
-      <div className="bg-gray-900/95 backdrop-blur border border-gray-600 p-2 rounded shadow-2xl z-50 min-w-[120px]">
-        <div className="flex justify-between items-center border-b border-gray-700 pb-1 mb-1">
-            <span className="text-[9px] text-gray-400 uppercase tracking-wider">Time</span>
-            <span className="text-[10px] font-mono text-gray-200">
-                {date.toLocaleTimeString([], { hour12: false })}
+const TimeSeriesWidget: React.FC<TimeSeriesWidgetProps> = ({ data, currentValue, title, unit, min, max, onClick }) => {
+  const id = useId();
+  const gradId = `grad-${id.replace(/:/g, '')}`;
+
+  return (
+    <div 
+      onClick={onClick}
+      className="flex flex-col h-full w-full p-3 bg-[#1e1e1e] rounded-lg border border-[#333] hover:border-gray-500 transition-all cursor-pointer group relative overflow-hidden"
+    >
+      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+         <Maximize2 size={14} className="text-gray-400" />
+      </div>
+
+      <div className="flex justify-between items-start mb-2 z-10">
+        <div className="flex flex-col overflow-hidden mr-2">
+            <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide truncate" title={title}>{title}</span>
+            <span className="text-xl font-bold text-white font-mono leading-tight mt-0.5">
+                {currentValue.toFixed(2)} <span className="text-xs text-gray-500 font-sans ml-0.5">{unit}</span>
             </span>
         </div>
-        <div className="flex justify-between items-baseline">
-           <span className="text-[9px] text-gray-400 uppercase tracking-wider mr-2">Val</span>
-           <span className="text-sm font-bold text-green-400 font-mono">
-             {payload[0].value.toFixed(2)}
-             <span className="text-[10px] text-gray-500 ml-0.5">{unit}</span>
-           </span>
-        </div>
       </div>
-    );
-  }
-  return null;
-};
-
-const TimeSeriesWidget: React.FC<TimeSeriesWidgetProps> = ({ data, currentValue, title, unit, min, max }) => {
-  return (
-    <div className="flex flex-col h-full w-full p-2 bg-gray-800/50 rounded border border-gray-700/50 relative group">
-      <div className="flex justify-between items-baseline mb-1 z-10">
-        <span className="text-xs font-medium text-gray-300 truncate mr-1" title={title}>{title}</span>
-        <span className="text-sm font-bold text-blue-400 font-mono">
-            {currentValue.toFixed(2)} <span className="text-[10px] text-gray-500">{unit}</span>
-        </span>
-      </div>
-      <div className="flex-1 w-full min-h-[40px] relative">
+      
+      <div className="flex-1 w-full min-h-[60px] relative">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
+          <AreaChart data={data}>
+            <defs>
+              <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+              </linearGradient>
+            </defs>
             <YAxis domain={[min, max]} hide />
+            <XAxis dataKey="timestamp" hide />
             <Tooltip 
-                content={<CustomTooltip unit={unit} />} 
-                cursor={{ stroke: '#6b7280', strokeWidth: 1, strokeDasharray: '3 3' }}
-                isAnimationActive={false}
-                animationDuration={0}
+                contentStyle={{ backgroundColor: '#111', border: '1px solid #333', borderRadius: '4px' }}
+                itemStyle={{ color: '#fff', fontSize: '12px' }}
+                labelStyle={{ display: 'none' }}
+                formatter={(val: number) => [val.toFixed(2), '']}
             />
-            <Line 
+            <Area 
                 type="monotone" 
                 dataKey="value" 
                 stroke="#10b981" 
                 strokeWidth={2} 
-                dot={false}
-                activeDot={{ r: 4, fill: '#10b981', stroke: '#fff', strokeWidth: 2 }}
+                fill={`url(#${gradId})`}
                 isAnimationActive={false} 
             />
-          </LineChart>
+          </AreaChart>
         </ResponsiveContainer>
       </div>
     </div>

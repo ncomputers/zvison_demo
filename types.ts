@@ -1,3 +1,5 @@
+export type Timeframe = '1H' | '8H' | '24H' | 'LIVE';
+
 export interface ValueRange {
   min: number;
   max: number;
@@ -19,8 +21,6 @@ export interface WidgetConfig {
   display_min?: number;
   display_max?: number;
   show_today_max?: boolean;
-  aggregation?: string;
-  aggregation_for_today_max?: string;
 }
 
 export interface LayoutGroup {
@@ -40,4 +40,9 @@ export interface DashboardConfig {
 
 export interface LiveData {
   [key: string]: number;
+}
+
+export interface HistoryPoint {
+  value: number;
+  timestamp: number;
 }

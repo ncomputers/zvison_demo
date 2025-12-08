@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Header from './components/Header';
-import Sidebar from './components/Sidebar';
 import KPIBar from './components/KPIBar';
 import AlarmPanel from './components/AlarmPanel';
+import ExpandedView from './components/ExpandedView';
 import Gauge from './components/Gauge';
 import Tank from './components/Tank';
 import BarWidget from './components/BarWidget';
@@ -11,40 +11,35 @@ import TimeSeriesWidget from './components/TimeSeriesWidget';
 import StatusCard from './components/StatusCard';
 import DonutWidget from './components/DonutWidget';
 import { DASHBOARD_CONFIG } from './constants';
-import { generateValue } from './utils';
-import { WidgetConfig, LiveData } from './types';
+import { generateValue, generateHistory } from './utils';
+import { WidgetConfig, LiveData, Timeframe, HistoryPoint, MetricDefinition } from './types';
 
-// Type for history buffer for sparklines
-type HistoryPoint = { value: number; timestamp: number };
 type HistoryBuffer = { [key: string]: HistoryPoint[] };
 
 const App: React.FC = () => {
   const [liveData, setLiveData] = useState<LiveData>({});
   const [history, setHistory] = useState<HistoryBuffer>({});
   const [isAlarmPanelOpen, setIsAlarmPanelOpen] = useState(false);
+  const [selectedTimeframe, setSelectedTimeframe] = useState<Timeframe>('LIVE');
+  const [expandedWidget, setExpandedWidget] = useState<WidgetConfig | null>(null);
 
-  // Initialize Data
+  // Initialize Data & History
   useEffect(() => {
     const initialData: LiveData = {};
     const initialHistory: HistoryBuffer = {};
-    const now = Date.now();
     
-    // Seed initial data
     Object.entries(DASHBOARD_CONFIG.metrics).forEach(([key, metric]) => {
-        const val = generateValue(metric.value_range.min, metric.value_range.max);
-        initialData[key] = val;
-        // Seed history with 20 points
-        initialHistory[key] = Array.from({length: 20}, (_, i) => ({
-            value: generateValue(metric.value_range.min, metric.value_range.max, val),
-            timestamp: now - ((20 - i) * 2000)
-        }));
+        initialData[key] = generateValue(metric.value_range.min, metric.value_range.max);
+        initialHistory[key] = generateHistory(metric, selectedTimeframe);
     });
     setLiveData(initialData);
     setHistory(initialHistory);
-  }, []);
+  }, [selectedTimeframe]);
 
   // Simulation Loop
   useEffect(() => {
+    if (selectedTimeframe !== 'LIVE') return; // Only animate in LIVE mode
+
     const interval = setInterval(() => {
       const now = Date.now();
       setLiveData((prevData) => {
@@ -52,10 +47,8 @@ const App: React.FC = () => {
         const newHistoryDelta: { [key: string]: HistoryPoint } = {};
 
         Object.entries(DASHBOARD_CONFIG.metrics).forEach(([key, metric]) => {
-          // Generate new value based on previous value to simulate realistic drift
           let newVal: number;
           if (metric.role === 'status') {
-             // For status, occasionally flip (low prob) or keep same
              newVal = Math.random() > 0.95 ? (prevData[key] > 0.5 ? 0 : 1) : prevData[key];
           } else {
              newVal = generateValue(metric.value_range.min, metric.value_range.max, prevData[key]);
@@ -64,13 +57,12 @@ const App: React.FC = () => {
           newHistoryDelta[key] = { value: newVal, timestamp: now };
         });
 
-        // Update History
         setHistory(prevHist => {
             const nextHist = { ...prevHist };
             Object.keys(newHistoryDelta).forEach(key => {
                 if (!nextHist[key]) nextHist[key] = [];
                 const updatedArr = [...nextHist[key], newHistoryDelta[key]];
-                if (updatedArr.length > 20) updatedArr.shift(); // Keep last 20 points
+                if (updatedArr.length > 50) updatedArr.shift(); 
                 nextHist[key] = updatedArr;
             });
             return nextHist;
@@ -78,10 +70,14 @@ const App: React.FC = () => {
 
         return newData;
       });
-    }, 2000); // Update every 2 seconds
+    }, 2000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [selectedTimeframe]);
+
+  const handleWidgetClick = (widget: WidgetConfig) => {
+    setExpandedWidget(widget);
+  };
 
   const renderWidget = useCallback((widget: WidgetConfig) => {
     const metricDef = DASHBOARD_CONFIG.metrics[widget.linked_metric_id];
@@ -91,126 +87,113 @@ const App: React.FC = () => {
     const min = widget.display_min ?? metricDef?.value_range.min ?? 0;
     const max = widget.display_max ?? metricDef?.value_range.max ?? 100;
 
+    const commonProps = {
+        key: widget.widget_id,
+        value, title: widget.title, unit: widget.unit, min, max,
+        onClick: () => handleWidgetClick(widget)
+    };
+
     switch (widget.type) {
       case 'gauge':
-        return <Gauge key={widget.widget_id} value={value} min={min} max={max} title={widget.title} unit={widget.unit} showMax={widget.show_today_max} history={historyData} />;
+        return <Gauge {...commonProps} history={historyData} />;
       case 'vertical_tank':
-        return <Tank key={widget.widget_id} value={value} min={min} max={max} title={widget.title} unit={widget.unit} />;
+        return <Tank {...commonProps} />;
       case 'bar':
-        return <BarWidget key={widget.widget_id} value={value} max={max} title={widget.title} unit={widget.unit} />;
+        return <BarWidget {...commonProps} />;
       case 'time_series':
-        return <TimeSeriesWidget key={widget.widget_id} data={historyData} currentValue={value} min={min} max={max} title={widget.title} unit={widget.unit} />;
+        return <TimeSeriesWidget {...commonProps} data={historyData} currentValue={value} />;
       case 'status_card':
-        return <StatusCard key={widget.widget_id} value={value} title={widget.title} />;
+        return <StatusCard {...commonProps} />;
       case 'donut':
-        return <DonutWidget key={widget.widget_id} value={value} title={widget.title} unit={widget.unit} />;
+        return <DonutWidget {...commonProps} />;
       case 'numeric_card':
       default:
-        return <NumericCard key={widget.widget_id} value={value} title={widget.title} unit={widget.unit} history={historyData} min={min} max={max} />;
+        return <NumericCard {...commonProps} history={historyData} />;
     }
   }, [liveData, history]);
 
-  const getWidgetSpan = (groupId: string, index: number) => {
-    if (groupId === 'enhancer_and_process_parameters') {
-       if (index < 3) return 'col-span-1 sm:col-span-1 lg:col-span-2';
-       return 'col-span-1 sm:col-span-1 lg:col-span-3';
-    }
-    return '';
-  };
-
   const getLayoutConfig = (groupId: string) => {
+    // Highly optimized for 1920x1080 and up without Sidebar
     switch (groupId) {
-      // TOP ROW
       case 'stack_parameters':
-        return { span: 'col-span-12 lg:col-span-4', cols: 'grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4' };
+        return { span: 'col-span-12 xl:col-span-4', cols: 'grid-cols-2 md:grid-cols-4 xl:grid-cols-2' };
       case 'sulphuric_acid_stock_level_mt':
-        return { span: 'col-span-12 lg:col-span-4', cols: 'grid-cols-4 sm:grid-cols-4' };
-      case 'plant_throughput':
-        return { span: 'col-span-12 lg:col-span-4', cols: 'grid-cols-3' };
-
-      // ROW 2
+        return { span: 'col-span-12 xl:col-span-4', cols: 'grid-cols-4' };
       case 'equipment_status':
-        return { span: 'col-span-12 lg:col-span-6 xl:col-span-3', cols: 'grid-cols-2 sm:grid-cols-4 lg:grid-cols-2' };
+         return { span: 'col-span-12 xl:col-span-4', cols: 'grid-cols-2' };
+      
       case 'enhancer_and_process_parameters':
-        return { span: 'col-span-12 lg:col-span-6 xl:col-span-6', cols: 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6' };
-      case 'product_and_coal_furnace_temperature':
-        return { span: 'col-span-12 lg:col-span-6 xl:col-span-3', cols: 'grid-cols-2' };
+        return { span: 'col-span-12 xl:col-span-8', cols: 'grid-cols-2 md:grid-cols-4 xl:grid-cols-5' };
+      case 'plant_throughput':
+        return { span: 'col-span-12 xl:col-span-4', cols: 'grid-cols-3' };
 
-      // ROW 3
-      case 'quality_control':
-        return { span: 'col-span-12 lg:col-span-4', cols: 'grid-cols-3' };
-      case 'energy_monitoring':
-        return { span: 'col-span-12 lg:col-span-4', cols: 'grid-cols-3' };
-      case 'maintenance_stats':
-        return { span: 'col-span-12 lg:col-span-4', cols: 'grid-cols-3' };
-
-      // ROW 4
       case 'electrical_and_mech_feedbacks':
-        return { span: 'col-span-12 lg:col-span-7', cols: 'grid-cols-2 sm:grid-cols-4' };
+        return { span: 'col-span-12 xl:col-span-6', cols: 'grid-cols-2 md:grid-cols-4' };
       case 'mill_pressures_and_loads':
-        return { span: 'col-span-12 lg:col-span-3', cols: 'grid-cols-1 sm:grid-cols-2' };
+        return { span: 'col-span-12 md:col-span-6 xl:col-span-3', cols: 'grid-cols-2' };
       case 'flow_totalisers_and_manual_entries':
-        return { span: 'col-span-12 lg:col-span-2', cols: 'grid-cols-1 sm:grid-cols-3 lg:grid-cols-1' };
+        return { span: 'col-span-12 md:col-span-6 xl:col-span-3', cols: 'grid-cols-1 md:grid-cols-3 xl:grid-cols-1' };
 
       default:
-        return { span: 'col-span-12', cols: 'grid-cols-4' };
+        return { span: 'col-span-12 xl:col-span-4', cols: 'grid-cols-3' };
     }
   };
 
   return (
-    <div className="flex h-screen bg-black text-white font-sans overflow-hidden">
-      <Sidebar />
-      
-      <div className="flex-1 flex flex-col min-w-0 bg-[#0a0a0a]">
-        <Header toggleAlarmPanel={() => setIsAlarmPanelOpen(!isAlarmPanelOpen)} />
+    <div className="flex h-screen bg-[#050505] text-white font-sans overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0">
+        <Header 
+            toggleAlarmPanel={() => setIsAlarmPanelOpen(!isAlarmPanelOpen)} 
+            selectedTimeframe={selectedTimeframe}
+            onTimeframeChange={setSelectedTimeframe}
+        />
         
-        <main className="flex-1 overflow-y-auto overflow-x-hidden p-2 sm:p-3 relative scroll-smooth">
-          <KPIBar />
-          
-          <div className="grid grid-cols-12 gap-3 pb-10 max-w-[1920px] mx-auto">
-            {DASHBOARD_CONFIG.layout_groups.map((group) => {
-              const layout = getLayoutConfig(group.group_id);
-              return (
-                <div key={group.group_id} className={`bg-[#1e1e1e]/80 backdrop-blur-sm border border-[#333] rounded-lg flex flex-col ${layout.span} shadow-lg shadow-black/20 group hover:border-gray-600 transition-colors`}>
-                  <div className="bg-[#252525]/50 px-3 py-1.5 border-b border-[#333] flex justify-between items-center h-9 shrink-0">
-                    <h3 className="text-[11px] font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2">
-                       <span className="w-1 h-3 bg-blue-500 rounded-full opacity-60"></span>
-                       {group.title}
-                    </h3>
-                  </div>
-                  <div className="p-2 flex-1 min-h-0">
-                     <div className={`grid gap-2 h-full ${layout.cols}`}>
-                        {group.widgets.map((widget, index) => {
-                           const spanClass = getWidgetSpan(group.group_id, index);
-                           return (
-                             <div key={widget.widget_id} className={`${spanClass} h-full min-h-[100px]`}>
-                               {renderWidget(widget)}
-                             </div>
-                           );
-                        })}
-                     </div>
-                  </div>
-                </div>
-              );
-            })}
+        <main className="flex-1 overflow-y-auto p-4 relative scroll-smooth bg-gradient-to-b from-[#111] to-[#050505]">
+          <div className="max-w-[2000px] mx-auto space-y-4">
+            <KPIBar />
+            
+            <div className="grid grid-cols-12 gap-4 pb-10">
+                {DASHBOARD_CONFIG.layout_groups.map((group) => {
+                const layout = getLayoutConfig(group.group_id);
+                return (
+                    <div key={group.group_id} className={`bg-[#181818] border border-[#2a2a2a] rounded-lg flex flex-col ${layout.span} shadow-xl overflow-hidden`}>
+                    <div className="bg-[#202020] px-3 py-2 border-b border-[#333] flex justify-between items-center h-10 shrink-0">
+                        <h3 className="text-xs font-bold text-gray-300 uppercase tracking-widest flex items-center gap-2">
+                        <span className="w-1.5 h-4 bg-blue-600 rounded-sm"></span>
+                        {group.title}
+                        </h3>
+                    </div>
+                    <div className="p-3 flex-1">
+                        <div className={`grid gap-3 h-full ${layout.cols}`}>
+                            {group.widgets.map((widget) => (
+                                <div key={widget.widget_id} className="h-full min-h-[120px]">
+                                {renderWidget(widget)}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    </div>
+                );
+                })}
+            </div>
           </div>
         </main>
         
-        <footer className="bg-[#151515] border-t border-[#333] px-4 py-1.5 flex flex-col sm:flex-row justify-between items-center text-[10px] text-gray-500 shrink-0 select-none z-30">
-          <div className="flex items-center gap-4">
-              <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-green-500"></div> PLC Online</span>
-              <span className="hidden sm:inline">|</span>
-              <span className="truncate">Server: <span className="text-gray-400">PI-AF-01</span></span>
-          </div>
-          <div className="flex items-center gap-4">
-              <span>Latency: <span className="text-green-500 font-mono">24ms</span></span>
-              <span className="hidden sm:inline">|</span>
-              <span>Build: v2.4.0</span>
-          </div>
+        <footer className="bg-[#0f0f0f] border-t border-[#222] px-6 py-2 flex justify-between items-center text-[11px] text-gray-500 shrink-0 select-none">
+           <div>Connected to: <span className="text-gray-300">PI-AF-SERVER-01</span></div>
+           <div>Latency: <span className="text-green-500">24ms</span></div>
         </footer>
       </div>
 
       <AlarmPanel isOpen={isAlarmPanelOpen} onClose={() => setIsAlarmPanelOpen(false)} />
+      
+      <ExpandedView 
+         isOpen={!!expandedWidget} 
+         onClose={() => setExpandedWidget(null)} 
+         widget={expandedWidget}
+         history={expandedWidget ? history[expandedWidget.linked_metric_id] : []}
+         metric={expandedWidget ? DASHBOARD_CONFIG.metrics[expandedWidget.linked_metric_id] : null}
+      />
     </div>
   );
 };

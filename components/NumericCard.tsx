@@ -1,5 +1,6 @@
 import React, { useId } from 'react';
-import { AreaChart, Area, YAxis, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, ResponsiveContainer, YAxis } from 'recharts';
+import { Maximize2 } from 'lucide-react';
 
 interface NumericCardProps {
   value: number;
@@ -8,23 +9,31 @@ interface NumericCardProps {
   history?: { value: number; timestamp: number }[];
   min?: number;
   max?: number;
+  onClick?: () => void;
 }
 
-const NumericCard: React.FC<NumericCardProps> = ({ value, title, unit, history = [], min, max }) => {
+const NumericCard: React.FC<NumericCardProps> = ({ value, title, unit, history = [], min, max, onClick }) => {
   const rawId = useId();
   const gradientId = `grad-${rawId.replace(/:/g, '')}`;
 
   return (
-    <div className="flex flex-col h-full w-full justify-between items-center p-2 bg-gray-800 border border-gray-700 rounded shadow-sm relative overflow-hidden">
-      <div className="text-xs text-gray-400 text-center mb-1 uppercase tracking-wider truncate w-full z-10 relative">{title}</div>
+    <div 
+      onClick={onClick}
+      className="flex flex-col h-full w-full justify-between items-center p-3 bg-[#1e1e1e] border border-[#333] rounded-lg hover:border-gray-500 transition-colors cursor-pointer group relative overflow-hidden"
+    >
+       <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+         <Maximize2 size={14} className="text-gray-400" />
+      </div>
+
+      <div className="text-[11px] font-semibold text-gray-400 text-center mb-1 uppercase tracking-wide truncate w-full z-10">{title}</div>
       
-      <div className="flex flex-col items-center justify-center flex-1 w-full z-10 relative">
-        <div className="text-xl font-bold text-white font-mono leading-none mb-1">{value.toFixed(2)}</div>
-        <div className="text-[10px] text-blue-400">{unit}</div>
+      <div className="flex flex-col items-center justify-center flex-1 w-full z-10">
+        <div className="text-2xl font-bold text-white font-mono leading-none mb-1">{value.toFixed(2)}</div>
+        <div className="text-[10px] font-bold text-blue-500">{unit}</div>
       </div>
 
       {history.length > 1 && (
-        <div className="h-12 w-full mt-1">
+        <div className="h-10 w-full mt-2 opacity-50 grayscale group-hover:grayscale-0 transition-all">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={history}>
                   <defs>
@@ -33,11 +42,7 @@ const NumericCard: React.FC<NumericCardProps> = ({ value, title, unit, history =
                       <stop offset="95%" stopColor="#60a5fa" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
-                  {min !== undefined && max !== undefined ? (
-                      <YAxis domain={[min, max]} hide />
-                  ) : (
-                      <YAxis domain={['auto', 'auto']} hide />
-                  )}
+                  <YAxis domain={min !== undefined ? [min, max!] : ['auto', 'auto']} hide />
                   <Area 
                       type="monotone" 
                       dataKey="value" 
