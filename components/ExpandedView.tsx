@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, Maximize2, Download, Activity, CalendarClock } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { X, Maximize2, Download, Activity, CalendarClock, Calendar } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Brush } from 'recharts';
 import { WidgetConfig, HistoryPoint, MetricDefinition, Timeframe } from '../types';
-import { generateHistory, formatTimeAxis } from '../utils';
+import { generateHistory, generateHistoryRange, formatTimeAxis, generateValue } from '../utils';
 
 interface ExpandedViewProps {
   isOpen: boolean;
@@ -14,21 +14,73 @@ interface ExpandedViewProps {
 
 const ExpandedView: React.FC<ExpandedViewProps> = ({ isOpen, onClose, widget, history, metric }) => {
   const [activeTimeframe, setActiveTimeframe] = useState<Timeframe>('LIVE');
+  const [isCustomDate, setIsCustomDate] = useState(false);
+  const [dateRange, setDateRange] = useState<{start: string, end: string}>({
+    // Default to last 24h
+    start: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
+    end: new Date().toISOString().slice(0, 16)
+  });
   const [displayData, setDisplayData] = useState<HistoryPoint[]>([]);
 
-  // Update display data when modal opens, timeframe changes, or history props update (for LIVE)
+  // Initialize display data when modal opens or timeframe/mode changes
   useEffect(() => {
     if (!isOpen || !metric) return;
 
-    if (activeTimeframe === 'LIVE') {
-      // For LIVE, use the accumulated history passed from App.tsx
+    if (activeTimeframe === 'LIVE' && !isCustomDate) {
+      // For LIVE, use the accumulated history passed from App.tsx as the starting point.
+      // We do NOT include 'history' in dependency array to avoid overwriting local simulation loop
+      // with background updates, preventing jitter.
       setDisplayData(history);
+    } else if (isCustomDate) {
+      // Custom Range Generation
+      const start = new Date(dateRange.start).getTime();
+      const end = new Date(dateRange.end).getTime();
+      if (!isNaN(start) && !isNaN(end) && start < end) {
+         setDisplayData(generateHistoryRange(metric, start, end));
+      }
     } else {
       // For historical views, generate synthetic data on the fly
       const generated = generateHistory(metric, activeTimeframe);
       setDisplayData(generated);
     }
-  }, [isOpen, activeTimeframe, history, metric]);
+  }, [isOpen, activeTimeframe, metric, isCustomDate, dateRange]); // Removed 'history' to allow local simulation to take over
+
+  // Real-time simulation loop for LIVE mode
+  useEffect(() => {
+    if (!isOpen || !metric || activeTimeframe !== 'LIVE' || isCustomDate) return;
+
+    const interval = setInterval(() => {
+      setDisplayData(prev => {
+        // If no data, fallback to mid-range
+        const lastVal = prev.length > 0 ? prev[prev.length - 1].value : (metric.value_range.min + metric.value_range.max) / 2;
+        
+        // Generate next value in the random walk
+        const nextVal = generateValue(metric.value_range.min, metric.value_range.max, lastVal);
+        
+        const nextPoint: HistoryPoint = { 
+          value: nextVal, 
+          timestamp: Date.now() 
+        };
+
+        // Append new point and maintain sliding window of ~50 points
+        const newData = [...prev, nextPoint];
+        if (newData.length > 50) newData.shift();
+        
+        return newData;
+      });
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [isOpen, activeTimeframe, isCustomDate, metric]);
+
+  // Helper to determine axis format based on custom range duration
+  const getAxisTimeframe = (): Timeframe => {
+    if (!isCustomDate) return activeTimeframe;
+    const start = new Date(dateRange.start).getTime();
+    const end = new Date(dateRange.end).getTime();
+    const hours = (end - start) / (1000 * 60 * 60);
+    return hours <= 24 ? '24H' : '7D';
+  };
 
   if (!isOpen || !widget || !metric) return null;
 
@@ -56,21 +108,61 @@ const ExpandedView: React.FC<ExpandedViewProps> = ({ isOpen, onClose, widget, hi
            </div>
            
            <div className="flex items-center gap-4">
-              {/* Timeframe Selector */}
+              {/* Timeframe Selector & Custom Date */}
               <div className="flex items-center bg-gray-900 rounded-lg p-1 border border-gray-700">
-                {timeframes.map((tf) => (
+                {!isCustomDate ? (
+                  <>
+                    {timeframes.map((tf) => (
+                        <button
+                            key={tf}
+                            onClick={() => setActiveTimeframe(tf)}
+                            className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
+                                activeTimeframe === tf 
+                                ? 'bg-blue-600 text-white shadow-md' 
+                                : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800'
+                            }`}
+                        >
+                            {tf}
+                        </button>
+                    ))}
+                    <div className="w-px h-4 bg-gray-700 mx-1"></div>
                     <button
-                        key={tf}
-                        onClick={() => setActiveTimeframe(tf)}
-                        className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
-                            activeTimeframe === tf 
-                            ? 'bg-blue-600 text-white shadow-md' 
-                            : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800'
-                        }`}
+                        onClick={() => setIsCustomDate(true)}
+                        className="px-3 py-1.5 text-xs font-bold text-gray-400 hover:text-white hover:bg-gray-800 rounded-md flex items-center gap-1 transition-all"
+                        title="Select custom date range"
                     >
-                        {tf}
+                        <Calendar size={14} />
                     </button>
-                ))}
+                  </>
+                ) : (
+                  <div className="flex items-center gap-2 px-2 animate-in fade-in slide-in-from-right-2 duration-200">
+                     <button 
+                        onClick={() => setIsCustomDate(false)}
+                        className="text-xs text-blue-400 hover:text-blue-300 font-bold mr-2 border-r border-gray-700 pr-2"
+                     >
+                        Presets
+                     </button>
+                     
+                     <div className="flex items-center gap-1">
+                        <span className="text-[10px] text-gray-500 uppercase">From</span>
+                        <input 
+                           type="datetime-local"
+                           value={dateRange.start}
+                           onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                           className="bg-gray-800 text-white text-xs border border-gray-600 rounded px-2 py-1 focus:border-blue-500 outline-none [color-scheme:dark]" 
+                        />
+                     </div>
+                     <div className="flex items-center gap-1">
+                        <span className="text-[10px] text-gray-500 uppercase">To</span>
+                        <input 
+                           type="datetime-local"
+                           value={dateRange.end}
+                           onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                           className="bg-gray-800 text-white text-xs border border-gray-600 rounded px-2 py-1 focus:border-blue-500 outline-none [color-scheme:dark]" 
+                        />
+                     </div>
+                  </div>
+                )}
               </div>
 
               <div className="h-6 w-px bg-gray-700"></div>
@@ -92,7 +184,7 @@ const ExpandedView: React.FC<ExpandedViewProps> = ({ isOpen, onClose, widget, hi
            <div className="flex-1 p-6 relative flex flex-col">
               <div className="flex-1 min-h-0">
                 <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={displayData}>
+                    <AreaChart data={displayData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                         <defs>
                         <linearGradient id="colorValueExpanded" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
@@ -101,30 +193,37 @@ const ExpandedView: React.FC<ExpandedViewProps> = ({ isOpen, onClose, widget, hi
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
                         <XAxis 
-                        dataKey="timestamp" 
-                        tickFormatter={(ts) => formatTimeAxis(ts, activeTimeframe)}
-                        stroke="#555"
-                        tick={{fontSize: 12, fill: '#888'}}
-                        minTickGap={50}
+                            dataKey="timestamp" 
+                            tickFormatter={(ts) => formatTimeAxis(ts, getAxisTimeframe())}
+                            stroke="#555"
+                            tick={{fontSize: 12, fill: '#888'}}
+                            minTickGap={50}
                         />
                         <YAxis 
-                        domain={[metric.value_range.min, metric.value_range.max]} 
-                        stroke="#555"
-                        tick={{fontSize: 12, fill: '#888'}}
+                            domain={[metric.value_range.min, metric.value_range.max]} 
+                            stroke="#555"
+                            tick={{fontSize: 12, fill: '#888'}}
                         />
                         <Tooltip 
-                        contentStyle={{backgroundColor: '#111', borderColor: '#444', color: '#fff'}}
-                        labelFormatter={(label) => new Date(label).toLocaleTimeString()}
-                        formatter={(value: number) => [value.toFixed(metric.decimals), widget.unit]}
+                            contentStyle={{backgroundColor: '#111', borderColor: '#444', color: '#fff'}}
+                            labelFormatter={(label) => new Date(label).toLocaleString()}
+                            formatter={(value: number) => [value.toFixed(metric.decimals), widget.unit]}
                         />
                         <Area 
-                        type="monotone" 
-                        dataKey="value" 
-                        stroke="#3b82f6" 
-                        strokeWidth={3} 
-                        fillOpacity={1} 
-                        fill="url(#colorValueExpanded)" 
-                        animationDuration={500}
+                            type="monotone" 
+                            dataKey="value" 
+                            stroke="#3b82f6" 
+                            strokeWidth={3} 
+                            fillOpacity={1} 
+                            fill="url(#colorValueExpanded)" 
+                            animationDuration={500}
+                        />
+                        <Brush 
+                            dataKey="timestamp" 
+                            height={30} 
+                            stroke="#333" 
+                            fill="#151515"
+                            tickFormatter={(ts) => formatTimeAxis(ts, getAxisTimeframe())}
                         />
                     </AreaChart>
                 </ResponsiveContainer>
@@ -138,7 +237,14 @@ const ExpandedView: React.FC<ExpandedViewProps> = ({ isOpen, onClose, widget, hi
                      <CalendarClock size={12} />
                      Selected Period
                   </div>
-                  <div className="text-lg font-bold text-white">{activeTimeframe === 'LIVE' ? 'Real-time Feed' : `Past ${activeTimeframe}`}</div>
+                  <div className="text-lg font-bold text-white">
+                      {isCustomDate ? 'Custom Range' : (activeTimeframe === 'LIVE' ? 'Real-time Feed' : `Past ${activeTimeframe}`)}
+                  </div>
+                  {isCustomDate && (
+                      <div className="text-[10px] text-gray-500 font-mono mt-1 truncate">
+                          {new Date(dateRange.start).toLocaleDateString()} - {new Date(dateRange.end).toLocaleDateString()}
+                      </div>
+                  )}
                </div>
 
                <div>

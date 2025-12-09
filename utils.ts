@@ -55,6 +55,23 @@ export const generateHistory = (metric: MetricDefinition, timeframe: Timeframe):
   return history;
 };
 
+export const generateHistoryRange = (metric: MetricDefinition, start: number, end: number, count: number = 50): { value: number; timestamp: number }[] => {
+  const history = [];
+  // Ensure we have a valid range
+  if (start >= end) return [];
+  
+  const timeStep = (end - start) / count;
+  let current = (metric.value_range.min + metric.value_range.max) / 2;
+
+  // Generate synthetic random walk forward from start time
+  for (let i = 0; i <= count; i++) {
+    const timestamp = start + (i * timeStep);
+    current = generateValue(metric.value_range.min, metric.value_range.max, current);
+    history.push({ value: current, timestamp });
+  }
+  return history;
+};
+
 export const formatTimeAxis = (timestamp: number, timeframe: Timeframe): string => {
   const date = new Date(timestamp);
   if (timeframe === 'LIVE' || timeframe === '1H') {

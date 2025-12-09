@@ -149,10 +149,10 @@ export const DASHBOARD_CONFIG: DashboardConfig = {
     "SILICA_FT_TOTALIZER": { "role": "totaliser", "value_range": { "min": 3758.3, "max": 3801.1 }, "unit": "m3", "decimals": 0 },
     "MANUAL_ACID_TOTALISER": { "role": "totaliser", "value_range": { "min": 3561.0, "max": 4369.7 }, "unit": "MT", "decimals": 0 },
     
-    "STATUS_BALL_MILL": { "role": "status", "value_range": { "min": 0, "max": 1 }, "unit": "bool", "decimals": 0 },
-    "STATUS_CRUSHER": { "role": "status", "value_range": { "min": 0, "max": 1 }, "unit": "bool", "decimals": 0 },
-    "STATUS_BLOWER": { "role": "status", "value_range": { "min": 0, "max": 1 }, "unit": "bool", "decimals": 0 },
-    "STATUS_CONVEYOR": { "role": "status", "value_range": { "min": 0, "max": 1 }, "unit": "bool", "decimals": 0 },
+    "STATUS_BALL_MILL": { "role": "status", "value_range": { "min": 1, "max": 1 }, "unit": "bool", "decimals": 0 },
+    "STATUS_CRUSHER": { "role": "status", "value_range": { "min": 1, "max": 1 }, "unit": "bool", "decimals": 0 },
+    "STATUS_BLOWER": { "role": "status", "value_range": { "min": 1, "max": 1 }, "unit": "bool", "decimals": 0 },
+    "STATUS_CONVEYOR": { "role": "status", "value_range": { "min": 1, "max": 1 }, "unit": "bool", "decimals": 0 },
     
     "QC_P2O5": { "role": "quality", "value_range": { "min": 14.5, "max": 18.0 }, "unit": "%", "decimals": 2 },
     "QC_MOISTURE": { "role": "quality", "value_range": { "min": 2.5, "max": 5.5 }, "unit": "%", "decimals": 2 },

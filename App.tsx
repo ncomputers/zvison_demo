@@ -49,7 +49,12 @@ const App: React.FC = () => {
         Object.entries(DASHBOARD_CONFIG.metrics).forEach(([key, metric]) => {
           let newVal: number;
           if (metric.role === 'status') {
-             newVal = Math.random() > 0.95 ? (prevData[key] > 0.5 ? 0 : 1) : prevData[key];
+             // Respect value range if fixed (e.g. min=1, max=1 means always 1)
+             if (metric.value_range.min === metric.value_range.max) {
+                 newVal = metric.value_range.min;
+             } else {
+                 newVal = Math.random() > 0.95 ? (prevData[key] > 0.5 ? 0 : 1) : prevData[key];
+             }
           } else {
              newVal = generateValue(metric.value_range.min, metric.value_range.max, prevData[key]);
           }
@@ -131,9 +136,10 @@ const App: React.FC = () => {
       case 'quality_control':
         return { span: 'col-span-12 xl:col-span-3', cols: 'grid-cols-2' };
       case 'electrical_and_mech_feedbacks':
-        return { span: 'col-span-12 xl:col-span-6', cols: 'grid-cols-2 md:grid-cols-4' };
+        // Changed to xl:grid-cols-2 to make it 2 rows high, matching QC and balancing the vertical flow
+        return { span: 'col-span-12 xl:col-span-6', cols: 'grid-cols-2 md:grid-cols-4 xl:grid-cols-2' };
       case 'maintenance_stats':
-         // Vertical side panel arrangement
+         // Vertical side panel arrangement spanning 2 rows
         return { span: 'col-span-12 xl:col-span-3 xl:row-span-2', cols: 'grid-cols-1' };
       
       case 'energy_monitoring':
