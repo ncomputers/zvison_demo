@@ -127,12 +127,21 @@ const App: React.FC = () => {
       case 'plant_throughput':
         return { span: 'col-span-12 xl:col-span-4', cols: 'grid-cols-3' };
 
+      // Bottom Section Dense Layout
+      case 'quality_control':
+        return { span: 'col-span-12 xl:col-span-3', cols: 'grid-cols-2' };
       case 'electrical_and_mech_feedbacks':
         return { span: 'col-span-12 xl:col-span-6', cols: 'grid-cols-2 md:grid-cols-4' };
+      case 'maintenance_stats':
+         // Vertical side panel arrangement
+        return { span: 'col-span-12 xl:col-span-3 xl:row-span-2', cols: 'grid-cols-1' };
+      
+      case 'energy_monitoring':
+        return { span: 'col-span-12 xl:col-span-3', cols: 'grid-cols-2' };
       case 'mill_pressures_and_loads':
-        return { span: 'col-span-12 md:col-span-6 xl:col-span-3', cols: 'grid-cols-2' };
+        return { span: 'col-span-12 md:col-span-6 xl:col-span-3', cols: 'grid-cols-1' };
       case 'flow_totalisers_and_manual_entries':
-        return { span: 'col-span-12 md:col-span-6 xl:col-span-3', cols: 'grid-cols-1 md:grid-cols-3 xl:grid-cols-1' };
+        return { span: 'col-span-12 md:col-span-6 xl:col-span-3', cols: 'grid-cols-2 xl:grid-cols-2' };
 
       default:
         return { span: 'col-span-12 xl:col-span-4', cols: 'grid-cols-3' };
@@ -152,7 +161,7 @@ const App: React.FC = () => {
           <div className="max-w-[2000px] mx-auto space-y-4">
             <KPIBar />
             
-            <div className="grid grid-cols-12 gap-4 pb-10">
+            <div className="grid grid-cols-12 gap-4 pb-10 grid-flow-dense">
                 {DASHBOARD_CONFIG.layout_groups.map((group) => {
                 const layout = getLayoutConfig(group.group_id);
                 return (

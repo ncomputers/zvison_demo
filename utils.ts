@@ -39,6 +39,8 @@ export const generateHistory = (metric: MetricDefinition, timeframe: Timeframe):
   
   if (timeframe === '8H') timeStep = 1000 * 60 * 10; // 10 min
   if (timeframe === '24H') timeStep = 1000 * 60 * 30; // 30 min
+  if (timeframe === '7D') timeStep = 1000 * 60 * 60 * 4; // 4 hours
+  if (timeframe === '30D') timeStep = 1000 * 60 * 60 * 12; // 12 hours
 
   const history = [];
   let current = (metric.value_range.min + metric.value_range.max) / 2;
@@ -58,5 +60,11 @@ export const formatTimeAxis = (timestamp: number, timeframe: Timeframe): string 
   if (timeframe === 'LIVE' || timeframe === '1H') {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); // Simplified for demo
+  if (timeframe === '8H' || timeframe === '24H') {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+  if (timeframe === '7D' || timeframe === '30D') {
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  }
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };

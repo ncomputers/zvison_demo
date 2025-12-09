@@ -55,7 +55,7 @@ export const DASHBOARD_CONFIG: DashboardConfig = {
       "widgets": [
         { "widget_id": "product_temperature", "title": "Product Temp", "type": "numeric_card", "linked_metric_id": "Temperature Transmitter", "unit": "°C" },
         { "widget_id": "silica_water_flow", "title": "Silica Water Flow", "type": "numeric_card", "linked_metric_id": "Silica Flow Meter", "unit": "m3/h" },
-        { "widget_id": "acid_flow", "title": "Sulphuric Acid Flow", "type": "numeric_card", "linked_metric_id": "Acid Flow Meter", "unit": "m3/h" },
+        { "widget_id": "acid_flow", "title": "Sulphuric Acid Flow", "type": "time_series", "linked_metric_id": "Acid Flow Meter", "unit": "m3/h" },
         { "widget_id": "water_flow", "title": "Water Flow", "type": "numeric_card", "linked_metric_id": "Water Flow Meter", "unit": "m3/h" },
         { "widget_id": "ipa_belt", "title": "Rock Phosphate", "type": "numeric_card", "linked_metric_id": "IPA Belt Weigh Feeding Signal", "unit": "TPH" }
       ]
@@ -79,6 +79,16 @@ export const DASHBOARD_CONFIG: DashboardConfig = {
         { "widget_id": "den_current", "title": "DEN Current", "type": "time_series", "linked_metric_id": "DEN Current feedback", "unit": "A" },
         { "widget_id": "mixer_current", "title": "Mixer Current", "type": "time_series", "linked_metric_id": "Mixer Current feedback", "unit": "A" },
         { "widget_id": "elevator_current", "title": "Elevator Current", "type": "time_series", "linked_metric_id": "Elevator Current feedback", "unit": "A" }
+      ]
+    },
+    {
+      "group_id": "maintenance_stats",
+      "title": "Maintenance & Downtime",
+      "description": "Breakdown analysis.",
+      "widgets": [
+        { "widget_id": "maint_downtime", "title": "Planned vs Unplanned", "type": "donut", "linked_metric_id": "MAINT_PLANNED_VS_UNPLANNED", "unit": "hrs" },
+        { "widget_id": "maint_mtbf", "title": "MTBF", "type": "numeric_card", "linked_metric_id": "MAINT_MTBF", "unit": "hrs" },
+        { "widget_id": "maint_breakdowns", "title": "Breakdowns Today", "type": "numeric_card", "linked_metric_id": "MAINT_BREAKDOWNS", "unit": "cnt" }
       ]
     },
     {
@@ -108,16 +118,6 @@ export const DASHBOARD_CONFIG: DashboardConfig = {
         { "widget_id": "acid_totaliser", "title": "ACID TOTAL", "type": "numeric_card", "linked_metric_id": "ACID_FT_TOTALIZER", "unit": "m3" },
         { "widget_id": "water_totaliser", "title": "WATER TOTAL", "type": "numeric_card", "linked_metric_id": "WTR_FT_TOTALIZER", "unit": "m3" },
         { "widget_id": "silica_totaliser", "title": "SILICA TOTAL", "type": "numeric_card", "linked_metric_id": "SILICA_FT_TOTALIZER", "unit": "m3" }
-      ]
-    },
-    {
-      "group_id": "maintenance_stats",
-      "title": "Maintenance & Downtime",
-      "description": "Breakdown analysis.",
-      "widgets": [
-        { "widget_id": "maint_downtime", "title": "Planned vs Unplanned", "type": "donut", "linked_metric_id": "MAINT_PLANNED_VS_UNPLANNED", "unit": "hrs" },
-        { "widget_id": "maint_mtbf", "title": "MTBF", "type": "numeric_card", "linked_metric_id": "MAINT_MTBF", "unit": "hrs" },
-        { "widget_id": "maint_breakdowns", "title": "Breakdowns Today", "type": "numeric_card", "linked_metric_id": "MAINT_BREAKDOWNS", "unit": "cnt" }
       ]
     }
   ],

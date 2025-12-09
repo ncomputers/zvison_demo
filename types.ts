@@ -1,4 +1,4 @@
-export type Timeframe = '1H' | '8H' | '24H' | 'LIVE';
+export type Timeframe = '1H' | '8H' | '24H' | '7D' | '30D' | 'LIVE';
 
 export interface ValueRange {
   min: number;
